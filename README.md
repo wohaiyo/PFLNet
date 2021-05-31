@@ -22,8 +22,8 @@ cd PFLNet
 ### Dataset
 You need to download the two dataset——ECP and RueMonge2014, and put the files in the `data` folder with following structure.
 ```
-├── ecp
-|    |── ecp1
+├── Artdeco
+|    |── set1
 |    |   ├── train
 |    |   |   ├── img
 |    |   |   └── label
@@ -32,7 +32,7 @@ You need to download the two dataset——ECP and RueMonge2014, and put the file
 |    |   |   └── label
 |    |   ├── train.txt
 |    |   └── val.txt
-|    |── ecp2
+|    |── set2
 |    |   ├── train
 |    |   |   ├── img
 |    |   |   └── label
@@ -41,52 +41,20 @@ You need to download the two dataset——ECP and RueMonge2014, and put the file
 |    |   |   └── label
 |    |   ├── train.txt
 |    |   └── val.txt
-|    |── ecp3
-|    |   ├── train
-|    |   |   ├── img
-|    |   |   └── label
-|    |   ├── val
-|    |   |   ├── img
-|    |   |   └── label
-|    |   ├── train.txt
-|    |   └── val.txt
-|    |── ecp4
-|    |   ├── train
-|    |   |   ├── img
-|    |   |   └── label
-|    |   ├── val
-|    |   |   ├── img
-|    |   |   └── label
-|    |   ├── train.txt
-|    |   └── val.txt
-|    |── ecp5
-|    |   ├── train
-|    |   |   ├── img
-|    |   |   └── label
-|    |   ├── val
-|    |   |   ├── img
-|    |   |   └── label
-|    |   ├── train.txt
-|    |   └── val.txt
-├── RueMonge2014
-|    ├── train
-|    |    ├── img
-|    |    └── label
-|    ├── val
-|    |    ├── img
-|    |    └── label
-|    ├── train.txt
-|    └── val.txt           
+|    |── ......
 ```
 
 ### Training
 
-- You can run: `python train.py -h` to check the detail of optional arguments.
-Basically, in the `config.py`, you can set the dataset, train type, epochs and batch size, etc.
+- Basically, in the `config.py`, you can set the dataset, train type, epochs and batch size, etc.
+- We have two steps to train the proposed model. First we train the Bayesian CNN model, we can run the follow scripts.
 ```
-python train.py
+python train_uncertainty.py
 ```
-- training on Cityscapes train set
+- Then, we train the facade parsing branch.
+```
+python train_facade_parsing.py
+```
 
 
 ### Testing

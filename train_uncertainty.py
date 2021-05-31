@@ -35,14 +35,7 @@ def main(argv=None):
             coord)
         image_batch, label_batch, mask_batch = reader.dequeue(cfg.BATCH_SIZE)
 
-    # ########### Bayesian model 1st train
-    # pred_annotation, logits = bayesian_resnet50_FCN(image_batch)
-    # # ce_loss = weighted_cross_entropy_loss_cmp(logits, label_batch)
-    # ce_loss = weighted_cross_entropy_loss_ecp(logits, label_batch)
-    # # ce_loss = weighted_cross_entropy_loss_artdeco(logits, label_batch)
-    # # ce_loss = weighted_cross_entropy_loss_graz(logits, label_batch)
-
-    ########### Bayesian model 2nd train
+    ########### Bayesian model train
     sample = True
     sample_num = 6
     if sample:
@@ -127,18 +120,6 @@ def main(argv=None):
     _img = image_batch[0]
     _gt = label_batch[0]
 
-    # _mask0 = tf.image.resize_nearest_neighbor(masks[0], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _mask1 = tf.image.resize_nearest_neighbor(masks[1], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _mask2 = tf.image.resize_nearest_neighbor(masks[1], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _mask3 = tf.image.resize_nearest_neighbor(masks[1], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _mask4 = tf.image.resize_nearest_neighbor(masks[1], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    #
-    # _mask0_res = tf.image.resize_nearest_neighbor(res_masks[0], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _mask1_res = tf.image.resize_nearest_neighbor(res_masks[1], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _mask2_res = tf.image.resize_nearest_neighbor(res_masks[1], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _mask3_res = tf.image.resize_nearest_neighbor(res_masks[1], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _mask4_res = tf.image.resize_nearest_neighbor(res_masks[1], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-
     # Create save path
     if not os.path.exists(cfg.LOG_DIR):
         os.makedirs(cfg.LOG_DIR)
@@ -182,12 +163,12 @@ def main(argv=None):
         else:
             print('Model inited random.')
 
-        # Convert RGB -> BGR of resnet_v1_50
-        conv1_rgb = tf.get_variable("conv1_rgb", [7, 7, 3, 64], trainable=False)
-        restorer_fc = tf.train.Saver({'resnet_v1_50/conv1/weights': conv1_rgb})
-        restorer_fc.restore(sess, cfg.PRE_TRAINED_MODEL)
-        sess.run(tf.assign(variables[0], tf.reverse(conv1_rgb, [2])))
-        print('ResNet Conv 1 RGB->BGR')
+        # # Convert RGB -> BGR of resnet_v1_50
+        # conv1_rgb = tf.get_variable("conv1_rgb", [7, 7, 3, 64], trainable=False)
+        # restorer_fc = tf.train.Saver({'resnet_v1_50/conv1/weights': conv1_rgb})
+        # restorer_fc.restore(sess, cfg.PRE_TRAINED_MODEL)
+        # sess.run(tf.assign(variables[0], tf.reverse(conv1_rgb, [2])))
+        # print('ResNet Conv 1 RGB->BGR')
 
     print('Start train ...')
     print('---------------Hyper Paras---------------')

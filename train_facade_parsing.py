@@ -14,37 +14,6 @@ import cv2
 
 os.environ['CUDA_VISIBLE_DEVICES'] = cfg.GPU
 
-def cal_simi_loss(label_batch, visible, occluded, feats, class_idx = 4):
-    # Similarity
-
-    # Binary the uncertainty map according the threshold
-    ones = tf.ones(label_batch.shape)
-    zeros = tf.zeros(label_batch.shape)
-
-    window_label = tf.where(tf.equal(label_batch, class_idx), ones, zeros)
-    window_visible = window_label * visible
-    window_occluded = window_label * occluded
-
-    win_feats_visible = window_visible * feats
-    win_feats_occluded = window_occluded * feats
-
-    # GAP
-    def cosine(q, a):  # cosine similarity
-        pooled_len_1 = tf.sqrt(tf.reduce_sum(q * q, 3))
-        pooled_len_2 = tf.sqrt(tf.reduce_sum(a * a, 3))
-        pooled_mul_12 = tf.reduce_sum(q * a, 3)
-        score = tf.div(pooled_mul_12, pooled_len_1 * pooled_len_2 + 1e-8, name="scores")
-        dist = tf.reduce_max(1 - score, 0)
-        return tf.reduce_mean(dist)
-
-    avg_win_feat_visible = tf.reduce_mean(win_feats_visible, [1, 2], name='window_visible_global_pooling',
-                                          keep_dims=True)
-    avg_win_feat_occluded = tf.reduce_mean(win_feats_occluded, [1, 2], name='window_occluded_global_pooling',
-                                           keep_dims=True)
-    simi_loss = cosine(avg_win_feat_occluded, avg_win_feat_visible)
-
-    return simi_loss
-
 def main(argv=None):
 
     input_size = (cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH)
@@ -65,169 +34,16 @@ def main(argv=None):
             coord)
         image_batch, label_batch, mask_batch = reader.dequeue(cfg.BATCH_SIZE)
 
-    # 1 Define model
-    # pred_annotation, logits, _ = occlusion_extraction(image_batch)
-    # pred_annotation, logits, feat_occ, _ = facade_extraction_embed(image_batch)
-    # pred_annotation, logits, logits_occ, feat_occ = facade_extraction_label(image_batch)
-    # pred_annotation, logits, logits_occ, feat_occ = facade_extraction_embed_label(image_batch)
-    #     # Loss
-    #     ce_loss = cross_entropy_loss(logits, label_batch) + cross_entropy_loss(logits_occ, facade_batch) + metric_loss(
-    #         label_batch, mask_batch, feat_occ)
-
-    # # 2 segmentation model
-    # pred_annotation, logits = inference_deeplabv3_plus_16(image_batch)
-    # ce_loss = cross_entropy_loss(logits, label_batch)
-
-    # # Direct fuison of uncertainty map and features
-    # pred_annotation, logits = inference_resnet50_uncertainty_direct_fusion(tf.concat([image_batch, mask_batch], axis=3))
-    # ce_loss = weighted_cross_entropy_loss_artdeco(logits, label_batch)
-    # masks = [pred_annotation] * 6
-    # res_masks = [pred_annotation] * 6
-
-
-    # # Bayesian model 1st train
-    # pred_annotation, logits = bayesian_resnet50_FCN(image_batch)
-    # ce_loss = cross_entropy_loss(logits, label_batch)
-
-    # # Bayesian model 2nd train
-    # sample = True
-    # sample_num = 4
-    # if sample:
-    #     # multiple stochastic forward
-    #     predicts = []
-    #     for i in range(sample_num):
-    #         pred_annotation, logits = bayesian_resnet50_FCN(image_batch)
-    #         logits = tf.nn.softmax(logits)
-    #
-    #         predicts.append(logits)
-    #     predicts_a = tf.convert_to_tensor(predicts)
-    #     predict_mean_b, predict_std_b = tf.nn.moments(predicts_a, axes=0)
-    #     predict_std_b = predict_std_b / tf.reduce_max(predict_std_b)        # Norm to [0, 1]
-    #     logits = predict_mean_b
-    #
-    # # Labels conver
-    # t to one-hot
-    # y_ = tf.squeeze(label_batch, squeeze_dims=[3])
-    # y_ = tf.cast(tf.one_hot(indices=y_, depth=cfg.DATASET_NUM_CLASSESS, on_value=1, off_value=0), dtype=tf.float32)
-    # ce_loss = -tf.reduce_mean((1 - predict_std_b) * y_ * tf.log(tf.clip_by_value(logits, 1e-10, 1.0)))
-
-
-    # # 3 progressive
-    # pred_annotation, logits, logits_occ, feat_occ, masks, res_masks = inference_resnet50_progressive(image_batch)
-    #
-    # ce_loss = cross_entropy_loss(logits_occ, facade_batch)
-    # # ce_loss += cross_entropy_loss(logits, label_batch)
-    # for i in range(len(logits)):
-    #     part_gt = tf.cast(tf.cast(label_batch, tf.float32) *
-    #                       tf.image.resize_nearest_neighbor(masks[i], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH]), tf.int32)
-    #     # logit = logits[i] * tf.image.resize_nearest_neighbor(masks[i], [512, 512])
-    #     # ce_loss += cross_entropy_loss(logit, part_gt)
-    #     ce_loss += weighted_cross_entropy_loss_ecp(logits[i], part_gt)
-
-    # # 3 progressive - train with uncertainty map
-    # mask_batch = tf.cast(1 - mask_batch, tf.float32)
-    # pred_annotation, logits, masks, res_masks = inference_resnet50_progressive_uncertainty_structure_res(tf.concat([image_batch, mask_batch], axis=3))
-    # ce_loss = tf.constant(0, tf.float32)
-    #
-    # # Binary the prob. map
-    # ones = tf.ones(masks[0].shape)
-    # zeros = tf.zeros(masks[0].shape)
-    # # ce_loss += tf.reduce_mean(tf.square(ones - masks[-1]))
-    #
-    # for i in range(len(masks)):
-    #     tmp = masks[i]
-    #     tmp_copy = tf.where(tmp >= 0.7, ones, zeros)
-    #     masks[i] = tmp_copy
-    #
-    # for i in range(len(logits)):
-    #     part_gt = tf.cast(tf.cast(label_batch, tf.float32) *
-    #                       tf.image.resize_nearest_neighbor(masks[i], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH]), tf.int32)
-    #     # ce_loss += cross_entropy_loss(logits[i], part_gt)#  * loss_weights[i]
-    #     ce_loss += weighted_cross_entropy_loss_artdeco(logits[i], part_gt)  # * loss_weights[i]
-
-
-    # # 4 progressive uncertainty loss - train with uncertainty map GRU- attention select map
-    # mask_batch = tf.cast(1 - mask_batch, tf.float32)
-    # pred_annotation, logits, masks, res_masks, att_maps = \
-    #     inference_resnet50_progressive_uncertainty_structure_res(tf.concat([image_batch, mask_batch], axis=3))
-    #
-    # # ce_loss = cross_entropy_loss(logits[-1], label_batch)
-    #
-    # # ce_loss = tf.constant(0, tf.float32)
-    # # for i in range(len(logits)):
-    # #     ce_loss += cross_entropy_loss(logits[i], label_batch)
-    #
-    #
-    # ce_loss = tf.constant(0, tf.float32)
-    # # loss_weights = [0.1, 0.2, 0.4, 0.6, 0.8, 1.0]
-    #
-    # # # Binary the prob. map
-    # # ones = tf.ones(masks[0].shape)
-    # # zeros = tf.zeros(masks[0].shape)
-    # #
-    # # for i in range(len(masks)):
-    # #     masks[i] = tf.where(masks[i] >= 0.7, ones, zeros)
-    # # masks[-1] = ones
-    #
-    # # Labels convert to one-hot
-    # y_ = tf.squeeze(label_batch, squeeze_dims=[3])
-    # y_ = tf.cast(tf.one_hot(indices=y_, depth=cfg.DATASET_NUM_CLASSESS, on_value=1, off_value=0), dtype=tf.float32)
-    #
-    # def ce_loss_un_weight(gt, pred, uncer):
-    #     weights = [0., 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-    #     cur_loss = -weights[0] * uncer * gt[:, :, :, 0:1] * tf.log(tf.clip_by_value(pred[:, :, :, 0:1], 1e-10, 1.0))
-    #     for i in range(1, cfg.DATASET_NUM_CLASSESS):
-    #         cur_loss += -weights[i] * uncer * gt[:, :, :, i:i+1] * tf.log(tf.clip_by_value(pred[:, :, :, i:i+1], 1e-10, 1.0))
-    #
-    #     return tf.reduce_mean(cur_loss)
-    #
-    # for i in range(len(logits)):
-    #     # part_gt = tf.cast(tf.cast(label_batch, tf.float32) *
-    #     #                   tf.image.resize_nearest_neighbor(res_masks[i], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH]), tf.int32)
-    #     # ce_loss += cross_entropy_loss(logits_select[i], part_gt)  # * loss_weights[i]
-    #
-    #     # # Hard-loss
-    #     # part_gt = tf.cast(tf.cast(label_batch, tf.float32) *
-    #     #                   tf.image.resize_nearest_neighbor(masks[i], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH]), tf.int32)
-    #     # ce_loss += weighted_cross_entropy_loss_artdeco(logits[i], part_gt)
-    #     # ce_loss += tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.image.resize_nearest_neighbor(masks[i], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH]),
-    #     #                                                    logits=att_maps[i]))
-    #     # # ce_loss += cross_entropy_loss(logits[i], part_gt)
-    #
-    #     # Soft-loss
-    #     un_prob = tf.image.resize_bilinear(masks[i], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])
-    #     if i == len(logits) - 1:
-    #         un_prob = tf.ones(un_prob.shape)
-    #     pred = tf.nn.softmax(logits[i])
-    #     # a = ce_loss_un_weight(y_, pred, un_prob)
-    #     # ce_loss += -tf.reduce_mean(un_prob * y_ * tf.log(tf.clip_by_value(pred, 1e-10, 1.0)))
-    #     ce_loss += ce_loss_un_weight(y_, pred, un_prob)
-    #
-    #     # Add uncertainty predict loss
-    #     # Binary
-    #     ones = tf.ones(un_prob.shape)
-    #     zeros = tf.zeros(un_prob.shape)
-    #     un_prob = tf.where(un_prob >= 0.7, ones, zeros)
-    #     ce_loss += tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=un_prob, logits=att_maps[i]))
-
-    # 5 uncertainty threshold
+    # uncertainty threshold
     mask_batch = tf.cast(1 - mask_batch, tf.float32)
-    # pred_annotation, logits, masks, res_masks, att_maps, feats_col = \
-    #     inference_resnet50_progressive_uncertainty_threshold(tf.concat([image_batch, mask_batch], axis=3))
 
+    # Define model
     pred_annotation, logits, masks, res_masks, att_maps, feats_col = \
         inference_resnet50_progressive_facade_parsing_uncertainty(tf.concat([image_batch, mask_batch], axis=3))
 
     # Binary the uncertainty map according the threshold
     ones = tf.ones(mask_batch.shape)
     zeros = tf.zeros(mask_batch.shape)
-    # # Using threshold
-    # uncer1 = tf.where(mask_batch >= 0.8, ones, zeros)
-    # uncer2 = tf.where(mask_batch >= 0.6, ones, zeros) - tf.where(mask_batch >= 0.8, ones, zeros)
-    # uncer3 = tf.where(mask_batch >= 0.0, ones, zeros) - tf.where(mask_batch >= 0.6, ones, zeros)
-    # uncer4 = uncer3 # tf.where(mask_batch >= 0.2, ones, zeros) - tf.where(mask_batch >= 0.4, ones, zeros)
-    # uncer5 = uncer3 # tf.where(mask_batch >= 0.0, ones, zeros) - tf.where(mask_batch >= 0.2, ones, zeros)
-    # masks = [uncer1, uncer2, uncer3, uncer4, uncer5]
 
     # Progressive
     res_masks = []
@@ -246,9 +62,6 @@ def main(argv=None):
     res_masks.append(res_masks[-1])
     res_masks.append(res_masks[-1])
     res_masks.append(res_masks[-1])
-
-
-    # stage_weights = [1.0, 2.0, 3.0, 4.0] # [1.0, 1.0, 1.0] #
 
     def ce_loss_un_weight(label_batch, pred, uncer):
         gt = tf.squeeze(label_batch, squeeze_dims=[3])
@@ -276,42 +89,7 @@ def main(argv=None):
         part_gt = tf.cast(tf.cast(label_batch, tf.float32) * masks[i], tf.int32)
         ce_loss += ce_loss_un_weight(part_gt, logits[i], ones)
 
-    # def Similarity_loss(logits):
-    #     ''' The similarity loss between the near row and column.'''
-    #     # logits = tf.nn.softmax(logits, axis=-1)
-    #     n, h, w, c = logits.get_shape().as_list()
-    #     loss_sim_h = []
-    #     for i in range(h - 1):
-    #         loss_sim_h.append(tf.abs(logits[:, i, :, :] - logits[:, i + 1, :, :]))
-    #     loss_sim_h = tf.reduce_mean(tf.concat(loss_sim_h, 0))
-    #     # width
-    #     loss_sim_w = []
-    #     for i in range(w - 1):
-    #         loss_sim_w.append(tf.abs(logits[:, :, i, :] - logits[:, :, i+1, :]))
-    #     loss_sim_w = tf.reduce_mean(tf.concat(loss_sim_w, 0))
-    #
-    #     return loss_sim_h + loss_sim_w
-    #
-    # def simi_loss(logits):
-    #     ''' The similarity loss between the near row and column.'''
-    #     # logits = tf.nn.softmax(logits, axis=-1)
-    #     n, h, w, c = logits.get_shape().as_list()
-    #     # For height
-    #     feat1 = logits[:, 0: h - 1, :, 4]
-    #     feat2 = logits[:, 1: h, :, 4]
-    #     feat = tf.abs(feat1 - feat2)
-    #     loss_sim_h = tf.reduce_mean(feat)
-    #     # For width
-    #     feat1 = logits[:, :, 0: w - 1, 4]
-    #     feat2 = logits[:, :, 1: w, 4]
-    #     feat = tf.abs(feat1 - feat2)
-    #     loss_sim_w = tf.reduce_mean(feat)
-    #     return loss_sim_h + loss_sim_w
-
-    # ce_loss += simi_loss * 3
-
     # L2-loss
-
     l2_loss = [cfg.WEIGHT_DECAY * tf.nn.l2_loss(v) for v in tf.trainable_variables()
                  if 'weights' or 'w' in v.name or 'W' in v.name]
     l2_losses = tf.add_n(l2_loss)
@@ -388,18 +166,6 @@ def main(argv=None):
     _mask3_res = tf.image.resize_nearest_neighbor(res_masks[3], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
     _mask4_res = tf.image.resize_nearest_neighbor(res_masks[4], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
 
-    # _att0_select = tf.image.resize_nearest_neighbor(att_select[0], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _att1_select = tf.image.resize_nearest_neighbor(att_select[1], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _att2_select = tf.image.resize_nearest_neighbor(att_select[2], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _att3_select = tf.image.resize_nearest_neighbor(att_select[3], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _att4_select = tf.image.resize_nearest_neighbor(att_select[4], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    #
-    # _att0_update = tf.image.resize_nearest_neighbor(gt_update[0], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _att1_update = tf.image.resize_nearest_neighbor(gt_update[1], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _att2_update = tf.image.resize_nearest_neighbor(gt_update[2], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _att3_update = tf.image.resize_nearest_neighbor(gt_update[3], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-    # _att4_update = tf.image.resize_nearest_neighbor(gt_update[4], [cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH])[0]
-
     # Create save path
     if not os.path.exists(cfg.LOG_DIR):
         os.makedirs(cfg.LOG_DIR)
@@ -443,12 +209,12 @@ def main(argv=None):
         else:
             print('Model inited random.')
 
-        # Convert RGB -> BGR of resnet_v1_50
-        conv1_rgb = tf.get_variable("conv1_rgb", [7, 7, 3, 64], trainable=False)
-        restorer_fc = tf.train.Saver({'resnet_v1_50/conv1/weights': conv1_rgb})
-        restorer_fc.restore(sess, cfg.PRE_TRAINED_MODEL)
-        sess.run(tf.assign(variables[0], tf.reverse(conv1_rgb, [2])))
-        print('ResNet Conv 1 RGB->BGR')
+        # # Convert RGB -> BGR of resnet_v1_50
+        # conv1_rgb = tf.get_variable("conv1_rgb", [7, 7, 3, 64], trainable=False)
+        # restorer_fc = tf.train.Saver({'resnet_v1_50/conv1/weights': conv1_rgb})
+        # restorer_fc.restore(sess, cfg.PRE_TRAINED_MODEL)
+        # sess.run(tf.assign(variables[0], tf.reverse(conv1_rgb, [2])))
+        # print('ResNet Conv 1 RGB->BGR')
 
     print('Start train ...')
     print('---------------Hyper Paras---------------')
@@ -576,32 +342,6 @@ def main(argv=None):
                 save_temp[0:cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH * 3:cfg.IMAGE_WIDTH * 4, :] = mask3
                 save_temp[0:cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH * 4:cfg.IMAGE_WIDTH * 5, :] = mask4
                 cv2.imwrite(cfg.SAVE_DIR + 'temp_img/' + str(now) + '_mask_res.jpg', save_temp)
-
-                # mask0 = att0_select * 255
-                # mask1 = att1_select * 255
-                # mask2 = att2_select * 255
-                # mask3 = att3_select * 255
-                # mask4 = att4_select * 255
-                # save_temp = np.zeros((cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH * 5, 3), np.uint8)
-                # save_temp[0:cfg.IMAGE_HEIGHT, 0:cfg.IMAGE_WIDTH, :] = mask0
-                # save_temp[0:cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH:cfg.IMAGE_WIDTH * 2, :] = mask1
-                # save_temp[0:cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH * 2:cfg.IMAGE_WIDTH * 3, :] = mask2
-                # save_temp[0:cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH * 3:cfg.IMAGE_WIDTH * 4, :] = mask3
-                # save_temp[0:cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH * 4:cfg.IMAGE_WIDTH * 5, :] = mask4
-                # cv2.imwrite(cfg.SAVE_DIR + 'temp_img/' + str(now) + '_mask_att_select.jpg', save_temp)
-                #
-                # mask0 = att0_update * 25
-                # mask1 = att1_update * 25
-                # mask2 = att2_update * 25
-                # mask3 = att3_update * 25
-                # mask4 = att4_update * 25
-                # save_temp = np.zeros((cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH * 5, 3), np.uint8)
-                # save_temp[0:cfg.IMAGE_HEIGHT, 0:cfg.IMAGE_WIDTH, :] = mask0
-                # save_temp[0:cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH:cfg.IMAGE_WIDTH * 2, :] = mask1
-                # save_temp[0:cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH * 2:cfg.IMAGE_WIDTH * 3, :] = mask2
-                # save_temp[0:cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH * 3:cfg.IMAGE_WIDTH * 4, :] = mask3
-                # save_temp[0:cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH * 4:cfg.IMAGE_WIDTH * 5, :] = mask4
-                # cv2.imwrite(cfg.SAVE_DIR + 'temp_img/' + str(now) + '_mask_att_update.jpg', save_temp)
 
             time_s = time.time()
 

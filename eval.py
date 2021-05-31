@@ -16,8 +16,8 @@ os.environ['CUDA_VISIBLE_DEVICES'] = cfg.GPU
 FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string('mode', "multi_eval", "single_eval / multi_eval / inference to evaluate.")
 
-CROP_OCC = False # True #
-CROP_VISIBLE = False # True #
+CROP_OCC = False
+CROP_VISIBLE = False
 DATASET_NUM_CLASSESS = cfg.DATASET_NUM_CLASSESS
 test_file = cfg.DATA_DIR + 'val.txt'
 test_dir = cfg.EVAL_DIR

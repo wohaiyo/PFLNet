@@ -9,13 +9,13 @@ def get_arguments():
       A list of parsed arguments.
     """
     parser = argparse.ArgumentParser(description="Facade Segmentation")
-    parser.add_argument("--data-dir", type=str, default='data/graz_uncer_folds/set1_without/', # 'data/artdeco3_uncer_folds/set1/' 'data/ecp-occluded_uncer_folds/set5/'
+    parser.add_argument("--data-dir", type=str, default='data/artdeco_uncer_folds/set1/',
                         help="Training and evaluation facade dataset.")
-    parser.add_argument("--eval-dir", type=str, default='data/graz_uncer_folds/set1_without/val', # 'data/artdeco3_uncer_folds/set1/val'  'data/ecp-occluded_uncer_folds/set5/val'
+    parser.add_argument("--eval-dir", type=str, default='data/artdeco_uncer_folds/set1/val',
                         help="Training and evaluation facade dataset.")
-    parser.add_argument("--dataset-size", type=int, default=30,   # 65 84 84 30,431     # ecp 3074 3122 3150 3012 3118
+    parser.add_argument("--dataset-size", type=int, default=65,
                         help="Number of training images.")
-    parser.add_argument("--dataset-num-classes", type=int, default=5,       # 9, 8, 5, ecp2011(7), cmp(12)
+    parser.add_argument("--dataset-num-classes", type=int, default=8,
                         help="Number of classes to predict (including background).")
     parser.add_argument("--ignore-label", type=int, default=0,
                         help="The index of the label to ignore during the training.")
@@ -23,7 +23,7 @@ def get_arguments():
     parser.add_argument("--batch-size", type=int, default=2,    # 1 for uncertainty, and 2 for facade parsing
                         help="Number of images sent to the network in one step.")
     parser.add_argument("--learning-rate", type=float,
-                        default=1e-4, help="Base learning rate for training with polynomial decay.") # 2e-4 for ECP
+                        default=1e-4, help="Base learning rate for training with polynomial decay.")
     parser.add_argument("--image-height", type=int, default=512,
                         help="Image height and width of image.")
     parser.add_argument("--image-width", type=int, default=512,
@@ -41,9 +41,9 @@ def get_arguments():
                         help="Save summaries and training image every often.")
     parser.add_argument("--max-snapshot-num", type=int, default=5,
                         help="The maximal snapshot number to save.")
-    parser.add_argument("--num-steps", type=int, default=3000,          # 6000 8000 3000 20000
+    parser.add_argument("--num-steps", type=int, default=6000,
                         help="Number of training steps.")
-    parser.add_argument("--start-save-step", type=int, default=3000,
+    parser.add_argument("--start-save-step", type=int, default=6000,
                         help="The step to start save checkpoint.")
     parser.add_argument("--save-step-every", type=int, default=1000,
                         help="Save checkpoint every often.")
@@ -59,16 +59,10 @@ def get_arguments():
     parser.add_argument("--max-scale", type=float, default=2.0,
                         help="The maximal scale of the inputs during the training.")
 
-    parser.add_argument("--save-dir", type=str, default='saves/graz_folds/set12/', # saves/ecp-occluded_uncer_folds/set5_cam/
+    parser.add_argument("--save-dir", type=str, default='saves/artdeco_uncer/set1/',
                         help="The Snapshot save path.")
-    parser.add_argument("--log-dir", type=str, default='logs/graz_folds/set12/', # logs/ecp-occluded_uncer_folds/set5_cam/
+    parser.add_argument("--log-dir", type=str, default='logs/artdeco_uncer/set1/',
                         help="The Logs save path.")
-
-    # parser.add_argument("--save-dir", type=str, default='saves/artdeco3_uncer_folds/pconv/set1_mask2/', #
-    #                     help="The Snapshot save path.")
-    # parser.add_argument("--log-dir", type=str, default='logs/artdeco3_uncer_folds/pconv/set1_mask2/', #
-    #                     help="The Logs save path.")
-
     parser.add_argument("--gradient-accumulation", type=int, default=1,
                         help="The number of gradient accumulation.")
     parser.add_argument("--gpu", type=str, default='1',
