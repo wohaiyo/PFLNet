@@ -20,7 +20,9 @@ cd PFLNet
 - One GPU with 11GB is needed
 
 ### Dataset
-You need to download the two dataset——ECP and RueMonge2014, and put the files in the `data` folder with following structure.
+You need to download the dataset——Artdeco, and put the files in the `data` folder with following structure.
+We compress the Artdeco dataset and put it on [[Baidu]](https://pan.baidu.com/s/1nkImZmjtXUrTkh1kIYe_QQ), code: bydr.  
+
 ```
 ├── Artdeco
 |    |── set1
